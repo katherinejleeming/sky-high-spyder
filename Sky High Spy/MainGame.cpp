@@ -48,9 +48,9 @@ void UpdateAgent8();
 void UpdateMeteors();
 void UpdateDestroyed();
 void Draw();
-//void Agent8AttachedControls();
+void Agent8AttachedControls();
 void UpdateGems();
-//void UpdateAsteroids();
+void UpdateAsteroids();
 
 
 // The entry point for a PlayBuffer program
@@ -58,24 +58,14 @@ void MainGameEntry( PLAY_IGNORE_COMMAND_LINE )
 {
 	Play::CreateManager( DISPLAY_WIDTH, DISPLAY_HEIGHT, DISPLAY_SCALE );
 	Play::LoadBackground("Data\\Backgrounds\\background.png");
-
-
-	/*std::vector<int> myArray;
-	myArray.push_back(10);
-	myArray.push_back(6);
-	for (int value : myArray)
-	{
-		int fred = value;
-
-	}*/
-
 	Play::CreateGameObject(TYPE_AGENT8, { DISPLAY_WIDTH / 2, DISPLAY_HEIGHT / 2 }, 40, "agent8_fly");
-	//Play::CreateGameObject(TYPE_ASTEROID, { 600, 100 }, 40, "asteroid");
+	Play::CreateGameObject(TYPE_ASTEROID, { DISPLAY_WIDTH / 2, DISPLAY_HEIGHT / 2 }, 40, "asteroid");
 	GameObject& obj_agent8 = Play::GetGameObjectByType(TYPE_AGENT8);
 	Play::CentreAllSpriteOrigins();
-	Play::SetSpriteOrigin("agent8_left", 60, 100);
-	Play::SetSpriteOrigin("agent8_right", 60, 100);
+	Play::SetSpriteOrigin("agent8_left", 60, 130);
+	Play::SetSpriteOrigin("agent8_right", 60, 130);
 	Play::SetSpriteOrigin("meteor", 60, 40);
+	Play::SetSpriteOrigin("asteroid", 75, 70);
 }
 
 // Called by PlayBuffer every frame (60 times a second!)
@@ -126,13 +116,13 @@ void Draw()
 {
 	Play::ClearDrawingBuffer(Play::cWhite);
 	Play::DrawBackground();
+	Agent8AttachedControls();
 	Agent8FlyControls();
-	UpdateAgent8();
+	UpdateAsteroids();
 	UpdateMeteors();
 	UpdateDestroyed();
-	//Agent8AttachedControls();
 	UpdateGems();
-	//UpdateAsteroids();
+	UpdateAgent8();
 	Play::PresentDrawingBuffer();
 }
 
@@ -140,7 +130,7 @@ void Agent8FlyControls()
 {
 	GameObject& obj_agent8 = Play::GetGameObjectByType(TYPE_AGENT8);
 
-	if (gameState.agentState != STATE_DEAD || STATE_START)
+	if (gameState.agentState != STATE_DEAD && gameState.agentState != STATE_START)
 	{
 	
 		SetObjectDirection(obj_agent8, AGENT8_SPEED);
@@ -163,6 +153,32 @@ void Agent8FlyControls()
 
 }
 
+void Agent8AttachedControls()
+{
+	GameObject& obj_agent8 = Play::GetGameObjectByType(TYPE_AGENT8);
+
+	if (gameState.agentState != STATE_DEAD)
+	{
+
+		if (Play::KeyDown(VK_LEFT))
+		{
+			obj_agent8.rotation -= 0.1f;
+			Play::SetSprite(obj_agent8, "agent8_left", 0.25f);
+		}
+
+		else if (Play::KeyDown(VK_RIGHT))
+		{
+			obj_agent8.rotation += 0.1f;
+			Play::SetSprite(obj_agent8, "agent8_right", 0.25f);
+		}
+	}
+
+	if (Play::IsLeavingDisplayArea(obj_agent8))
+	{
+		LoopObject(obj_agent8, 40, 40);
+	}
+}
+
 void UpdateAgent8()
 {
 	GameObject& obj_agent8 = Play::GetGameObjectByType(TYPE_AGENT8);
@@ -178,23 +194,26 @@ void UpdateAgent8()
 					if (Play::KeyPressed(VK_SPACE) == true)
 					{
 						//Play::StartAudioLoop("speeddrive");
-						gameState.agentState = STATE_FLY;
+						gameState.agentState = STATE_ATTACHED;
 					}
 					break;
 
 				case STATE_ATTACHED:
-					//Agent8AttachedControls();
+					Agent8AttachedControls();
 					Play::DrawFontText("105px", "REMAINING GEMS: " + std::to_string(gameState.gems),
 						{ DISPLAY_WIDTH / 2, 50 }, Play::CENTRE);
-
+					Play::UpdateGameObject(obj_agent8);
 					if ((Play::KeyPressed(VK_UP) == true))
 					{
+					
 						gameState.agentState = STATE_FLY;
 					}
+
 					break;
 
 				case STATE_FLY:
 					Agent8FlyControls();
+					Play::UpdateGameObject(obj_agent8);
 					Play::DrawFontText("105px", "REMAINING GEMS: " + std::to_string(gameState.gems),
 						{ DISPLAY_WIDTH / 2, 50 }, Play::CENTRE);
 					break;
@@ -208,7 +227,7 @@ void UpdateAgent8()
 					Play::SetSprite(obj_agent8, "agent8_dead", 0.25f);
 					Play::DrawFontText("105px", "GAME OVER :(", { DISPLAY_WIDTH / 2, DISPLAY_HEIGHT / 2 }, Play::CENTRE);
 					Play::DrawFontText("64px", "PLAY AGAIN? PRESS R TO RESTART",{ DISPLAY_WIDTH / 2, DISPLAY_HEIGHT - 50 }, Play::CENTRE);
-
+					Play::UpdateGameObject(obj_agent8);
 					if (!Play::IsVisible(obj_agent8))
 					{
 						Play::DestroyGameObjectsByType(TYPE_AGENT8);
@@ -225,10 +244,10 @@ void UpdateAgent8()
 						for (int meteor_id : Play::CollectGameObjectIDsByType(TYPE_METEOR))
 							Play::GetGameObject(meteor_id).type = TYPE_DESTROYED;
 					}
+
 					break;
 	}
 
-	Play::UpdateGameObject(obj_agent8);
 	Play::DrawObjectRotated(obj_agent8);
 
 }
@@ -292,21 +311,32 @@ void UpdateGems()
 }
 
 
-//void UpdateAsteroids()
-//{
-//	std::vector<int> vAsteroids = Play::CollectGameObjectIDsByType(TYPE_ASTEROID);
-//	for (int id_asteroid : vAsteroids)
-//	{
-//		GameObject& obj_asteroid = Play::GetGameObject(id_asteroid);
-//		FloatDirectionObject(obj_asteroid, AGENT8_SPEED);
-//
-//
-//		Play::DrawObjectRotated(obj_asteroid);
-//	}
-//
-//	
-//	
-//}
+void UpdateAsteroids()
+{
+	GameObject& obj_agent8 = Play::GetGameObjectByType(TYPE_AGENT8);
+	std::vector<int> vAsteroids = Play::CollectGameObjectIDsByType(TYPE_ASTEROID);
+	
+		int id_asteroid = Play::CreateGameObject(TYPE_ASTEROID, { Play::RandomRoll(DISPLAY_WIDTH), Play::RandomRoll(DISPLAY_HEIGHT) }, 40, "asteroid");
+		GameObject& obj_asteroid = Play::GetGameObject(id_asteroid);
+		SetObjectDirection(obj_asteroid, ASTEROID_SPEED);
+		Play::SetSprite(obj_asteroid, "asteroid", 0.25f);
+		//LoopObject(obj_asteroid, 40, 40);
+
+		for (int i = 0; i < 5; i++)
+		{
+			Play::DrawObjectRotated(Play::GetGameObject(id_asteroid));
+			GameObject& obj_asteroid = Play::GetGameObject(id_asteroid);
+			bool hasCollided = false;
+
+			if (gameState.agentState == STATE_FLY && Play::IsColliding(obj_asteroid, obj_agent8))
+			{
+				gameState.agentState = STATE_ATTACHED;
+			}
+		
+			Play::UpdateGameObject(obj_asteroid);
+
+		}
+}
 
 
 void UpdateMeteors()
@@ -316,7 +346,7 @@ void UpdateMeteors()
 
 	if (gameState.agentState != STATE_DEAD)
 	{
-		if (Play::RandomRoll(200) == 200)
+		if (Play::RandomRoll(300) == 300)
 		{
 			int meteor_id = Play::CreateGameObject(TYPE_METEOR, { 0, Play::RandomRoll(DISPLAY_HEIGHT) }, 45, "meteor");
 			GameObject& obj_meteor = Play::GetGameObject(meteor_id);
