@@ -30,9 +30,9 @@ enum PlayState
 struct GameState
 {
 	int gems{ 3 };
-	int score{ 0 };
 	float time{ 0 };
 	Agent8State agentState = STATE_APPEAR;
+	PlayState playState = STATE_START;
 };
 
 GameState gameState;
@@ -112,21 +112,47 @@ void MainGameEntry( PLAY_IGNORE_COMMAND_LINE )
 	Play::SetSpriteOrigin("meteor", 60, 40);
 	Play::SetSpriteOrigin("asteroid", 75, {ASTEROID_RADIUS});
 
-	/*int id_asteroid = Play::CreateGameObject(TYPE_ASTEROID, { DISPLAY_WIDTH / 2, DISPLAY_HEIGHT / 3 }, 40, "asteroid");
-	GameObject& obj_asteroid1 = Play::GetGameObject(id_asteroid);
-	obj_asteroid1.rotation = Randomize(628, 0.01);
-	Play::SetSprite(obj_asteroid1, "asteroid", 0.25f);*/
-
 }
 
 bool MainGameUpdate( float elapsedTime )
 {
 	gameState.time += elapsedTime;
 
-	/*case STATE_WIN:
-				Play::DrawFontText("64px", "YOU WON! PLAY AGAIN? PRESS P TO PLAY AGAIN", { DISPLAY_WIDTH / 2, DISPLAY_HEIGHT / 2 }, Play::CENTRE);
-				break;*/
+	switch (gameState.playState)
+	{
+		case STATE_START:
+			if (Play::KeyPressed(VK_SPACE) == true)
+			{
+				Play::StartAudioLoop("speeddrive");
+				gameState.agentState = STATE_FLY;
+			}
+			break;
 
+		case STATE_PLAY:
+			UpdateAgent8();
+			UpdateAgent8();
+			UpdateAsteroids();
+			UpdateMeteors();
+			UpdateParticles();
+			UpdatePieces();
+			UpdateGems();
+			break;
+
+		case STATE_PAUSE:
+			
+			break;
+
+		case STATE_WIN:
+			Play::DrawFontText("64px", "YOU WON! PLAY AGAIN? PRESS P TO PLAY AGAIN", { DISPLAY_WIDTH / 2, DISPLAY_HEIGHT / 2 }, Play::CENTRE);
+			break;
+
+		case STATE_GAMEOVER:
+			Play::DrawFontText("105px", "GAME OVER :(", { DISPLAY_WIDTH / 2, DISPLAY_HEIGHT / 2 }, Play::CENTRE);
+			Play::DrawFontText("64px", "PLAY AGAIN? PRESS R TO RESTART", { DISPLAY_WIDTH / 2, DISPLAY_HEIGHT - 50 }, Play::CENTRE);
+			break;
+	}
+
+	UpdateAgent8();
 	UpdateAsteroids();
 	UpdateMeteors();
 	UpdateParticles();
@@ -141,8 +167,6 @@ int MainGameExit( void )
 	return PLAY_OK;
 }
 
-
-
 void Draw()
 {
 	Play::ClearDrawingBuffer(Play::cWhite);
@@ -152,22 +176,11 @@ void Draw()
 	{
 		Play::DrawObjectRotated(Play::GetGameObject(k));
 		GameObject& obj_asteroid = Play::GetGameObject(k);
+		LoopObject((Play::GetGameObject(k)), 40, 40);
 	}
 
 	Play::DrawObjectRotated(Play::GetGameObjectByType(TYPE_SPECIAL));
-	GameObject& obj_specialA { Play::GetGameObjectByType(TYPE_SPECIAL) };
-
-	for (int i : Play::CollectGameObjectIDsByType(TYPE_GEM))
-	{
-		Play::DrawObjectRotated(Play::GetGameObject(i));
-		GameObject& obj_gem = Play::GetGameObject(i);
-	}
-
-	for (int j : Play::CollectGameObjectIDsByType(TYPE_PIECES))
-	{
-		Play::DrawObjectRotated(Play::GetGameObject(j));
-		GameObject& obj_piece = Play::GetGameObject(j);
-	}
+	GameObject& obj_specialA = Play::GetGameObjectByType(TYPE_SPECIAL);
 
 	for (int l : Play::CollectGameObjectIDsByType(TYPE_METEOR))
 	{
@@ -181,8 +194,29 @@ void Draw()
 		GameObject& obj_particle = Play::GetGameObject(m);
 	}
 
-	UpdateAgent8();
+	Play::DrawObjectRotated(Play::GetGameObjectByType(TYPE_AGENT8));
+	GameObject& obj_agent8 = Play::GetGameObjectByType(TYPE_AGENT8);
+	LoopObject(obj_agent8, 40, 40);
+
+	for (int i : Play::CollectGameObjectIDsByType(TYPE_GEM))
+	{
+		Play::DrawObjectRotated(Play::GetGameObject(i));
+		GameObject& obj_gem = Play::GetGameObject(i);
+	}
+
+	for (int j : Play::CollectGameObjectIDsByType(TYPE_PIECES))
+	{
+		Play::DrawObjectRotated(Play::GetGameObject(j));
+		GameObject& obj_piece = Play::GetGameObject(j);
+	}
+
 	UpdateDestroyed();
+
+	Play::DrawFontText("64px", "LEFT AND RIGHT TO ROTATE, UP TO LAUNCH",
+		{ DISPLAY_WIDTH / 2, DISPLAY_HEIGHT - 50 }, Play::CENTRE);
+	Play::DrawFontText("105px", "REMAINING GEMS: " + std::to_string(gameState.gems),
+		{ DISPLAY_WIDTH / 2, 50 }, Play::CENTRE);
+
 	Play::PresentDrawingBuffer();
 }
 
@@ -212,12 +246,6 @@ void Agent8FlyControls()
 			}
 	}
 
-
-	if (Play::IsLeavingDisplayArea(obj_agent8))
-	{
-		LoopObject(obj_agent8, 40, 40);
-	}
-
 }
 
 void Agent8AttachedControls()
@@ -241,6 +269,7 @@ void Agent8AttachedControls()
 
 		if (Play::KeyPressed(VK_UP))
 		{
+			gameState.agentState = STATE_FLY;
 			GameObject& obj_specialA = Play::GetGameObjectByType(TYPE_SPECIAL);
 			Play::DestroyGameObjectsByType(TYPE_SPECIAL);
 			obj_agent8.pos.x += 57 * sin(obj_agent8.rotation);  
@@ -249,10 +278,6 @@ void Agent8AttachedControls()
 
 		}
 
-	if (Play::IsLeavingDisplayArea(obj_agent8))
-	{
-		LoopObject(obj_agent8, 40, 40);
-	}
 }
 
 void UpdateAgent8()
@@ -261,31 +286,10 @@ void UpdateAgent8()
 
 	switch (gameState.agentState)
 		{
-				case STATE_APPEAR:
-					Play::DrawFontText("64px", "LEFT AND RIGHT TO ROTATE, UP TO LAUNCH",
-						{ DISPLAY_WIDTH / 2, DISPLAY_HEIGHT - 50 }, Play::CENTRE);
-					Play::DrawFontText("64px", "FIND AND COLLECT ALL THE GEMS! PRESS SPACE TO START",
-						{ DISPLAY_WIDTH / 2, DISPLAY_HEIGHT / 3 }, Play::CENTRE);
-					
-					if (Play::KeyPressed(VK_SPACE) == true)
-					{
-						//Play::StartAudioLoop("speeddrive");
-						gameState.agentState = STATE_FLY;
-					}
-					break;
-
 				case STATE_ATTACHED:
-					
 					Play::SetSprite(obj_agent8, "agent8_right", 0.25f);
 					Agent8AttachedControls();
-					Play::DrawFontText("105px", "REMAINING GEMS: " + std::to_string(gameState.gems),
-						{ DISPLAY_WIDTH / 2, 50 }, Play::CENTRE);
 					Play::UpdateGameObject(obj_agent8);
-
-					if (Play::KeyPressed(VK_UP) == true)
-					{
-						gameState.agentState = STATE_FLY;
-					}
 
 					break;
 
@@ -293,17 +297,13 @@ void UpdateAgent8()
 					Play::SetSprite(obj_agent8, "agent8_fly", 0.25f);
 					Agent8FlyControls();
 					CreateParticles();
-					Play::UpdateGameObject(obj_agent8);
 					UpdateGems();
-					Play::DrawFontText("105px", "REMAINING GEMS: " + std::to_string(gameState.gems),
-						{ DISPLAY_WIDTH / 2, 50 }, Play::CENTRE);
+					Play::UpdateGameObject(obj_agent8);
+					
 					break;
 	
 				case STATE_DEAD:
-					
 					Play::SetSprite(obj_agent8, "agent8_dead", 0.25f);
-					Play::DrawFontText("105px", "GAME OVER :(", { DISPLAY_WIDTH / 2, DISPLAY_HEIGHT / 2 }, Play::CENTRE);
-					Play::DrawFontText("64px", "PLAY AGAIN? PRESS R TO RESTART",{ DISPLAY_WIDTH / 2, DISPLAY_HEIGHT - 50 }, Play::CENTRE);
 					Play::UpdateGameObject(obj_agent8);
 
 						for (int meteor_id : Play::CollectGameObjectIDsByType(TYPE_METEOR))
@@ -317,7 +317,6 @@ void UpdateAgent8()
 						gameState.agentState = STATE_APPEAR;
 						Play::SetSprite(obj_agent8, "agent8_fly", 0.25f);
 						obj_agent8.pos = { DISPLAY_WIDTH/2, DISPLAY_HEIGHT/2 };
-						gameState.score = 0;
 						gameState.gems = 3;
 						gameState.time = 0;
 
@@ -326,7 +325,6 @@ void UpdateAgent8()
 					break;
 	}
 
-	Play::DrawObjectRotated(obj_agent8);
 
 }
 
@@ -351,7 +349,6 @@ void UpdateDestroyed()
 void UpdateGems()
 {
 	GameObject& obj_agent8 = Play::GetGameObjectByType(TYPE_AGENT8);
-	//GameObject& obj_specialA = Play::GetGameObjectByType(TYPE_SPECIAL);
 	std::vector<int> vGems = Play::CollectGameObjectIDsByType(TYPE_GEM);
 
 	for (int id_gem : vGems)
@@ -369,7 +366,7 @@ void UpdateGems()
 
 			if (gameState.gems >= 0)
 			{
-				//gameState.agentState = STATE_WIN;
+				gameState.playState = STATE_WIN;
 			}
 		}
 
@@ -459,7 +456,6 @@ void UpdateAsteroids()
 	{
 
 		LoopObject((Play::GetGameObject(id)), 40, 40);
-		//Play::DrawObjectRotated(Play::GetGameObject(id));
 		Play::UpdateGameObject(Play::GetGameObject(id));
 
 	}
