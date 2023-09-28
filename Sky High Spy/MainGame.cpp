@@ -203,8 +203,8 @@ void Agent8AttachedControls()
 
 		if (Play::KeyPressed(VK_UP))
 		{
-			obj_agent8.pos.x += 110 + ASTEROID_RADIUS * sin(obj_agent8.rotation);  
-			obj_agent8.pos.y += 110 + ASTEROID_RADIUS * -cos(obj_agent8.rotation);
+			obj_agent8.pos.x += 57 * sin(obj_agent8.rotation);  
+			obj_agent8.pos.y += 57 * -cos(obj_agent8.rotation);
 			Play::PlayAudio("explode");
 			GameObject& obj_specialA = Play::GetGameObjectByType(TYPE_SPECIAL);
 			Play::DestroyGameObjectsByType(TYPE_SPECIAL);
@@ -247,7 +247,6 @@ void UpdateAgent8()
 					if (Play::KeyPressed(VK_UP) == true)
 					{
 						gameState.agentState = STATE_FLY;
-						obj_agent8.pos -= obj_agent8.velocity * 40;
 					}
 
 					break;
