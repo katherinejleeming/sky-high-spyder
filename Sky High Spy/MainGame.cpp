@@ -8,13 +8,13 @@ constexpr int DISPLAY_SCALE{ 1 };
 float AGENT8_SPEED{ 9.0f };
 float METEOR_SPEED{ 7.0f };
 float ASTEROID_SPEED{ 4.0f };
+int ASTEROID_RADIUS{ 70 };
 
 enum Agent8State
 {
 	STATE_APPEAR = 0,
 	STATE_ATTACHED,
 	STATE_FLY,
-	STATE_WIN,
 	STATE_DEAD,
 };
 
@@ -105,11 +105,12 @@ void MainGameEntry( PLAY_IGNORE_COMMAND_LINE )
 	Play::CreateManager( DISPLAY_WIDTH, DISPLAY_HEIGHT, DISPLAY_SCALE );
 	Play::LoadBackground("Data\\Backgrounds\\background.png");
 	Play::CreateGameObject(TYPE_AGENT8, { DISPLAY_WIDTH / 2, DISPLAY_HEIGHT / 2 }, 40, "agent8_fly");
-	//Play::CreateGameObject(TYPE_ASTEROID, { DISPLAY_WIDTH / 2, DISPLAY_HEIGHT / 2 }, 40, "asteroid");
+	
 	Play::CentreAllSpriteOrigins();
-
+	Play::SetSpriteOrigin("agent8_left", 64, 110);
+	Play::SetSpriteOrigin("agent8_right", 64, 110);
 	Play::SetSpriteOrigin("meteor", 60, 40);
-	Play::SetSpriteOrigin("asteroid", 75, 70);
+	Play::SetSpriteOrigin("asteroid", 75, {ASTEROID_RADIUS});
 
 	/*int id_asteroid = Play::CreateGameObject(TYPE_ASTEROID, { DISPLAY_WIDTH / 2, DISPLAY_HEIGHT / 3 }, 40, "asteroid");
 	GameObject& obj_asteroid1 = Play::GetGameObject(id_asteroid);
@@ -189,21 +190,21 @@ void Agent8AttachedControls()
 		if (Play::KeyDown(VK_LEFT))
 		{
 			obj_agent8.rotation -= 0.1f;
-			Play::SetSpriteOrigin("agent8_left", 64, 110);
+			
 			Play::SetSprite(obj_agent8, "agent8_left", 0.25f);
 		}
 
 		else if (Play::KeyDown(VK_RIGHT))
 		{
 			obj_agent8.rotation += 0.1f;
-			Play::SetSpriteOrigin("agent8_right", 64, 110);
+			
 			Play::SetSprite(obj_agent8, "agent8_right", 0.25f);
 		}
 
 		if (Play::KeyPressed(VK_UP))
 		{
-			obj_agent8.pos.x += 10 * AGENT8_SPEED * sin(obj_agent8.rotation);  
-			obj_agent8.pos.y += 10  * AGENT8_SPEED * -cos(obj_agent8.rotation);
+			obj_agent8.pos.x += 110 + ASTEROID_RADIUS * sin(obj_agent8.rotation);  
+			obj_agent8.pos.y += 110 + ASTEROID_RADIUS * -cos(obj_agent8.rotation);
 			Play::PlayAudio("explode");
 			GameObject& obj_specialA = Play::GetGameObjectByType(TYPE_SPECIAL);
 			Play::DestroyGameObjectsByType(TYPE_SPECIAL);
@@ -230,14 +231,13 @@ void UpdateAgent8()
 					
 					if (Play::KeyPressed(VK_SPACE) == true)
 					{
-						Play::StartAudioLoop("speeddrive");
+						//Play::StartAudioLoop("speeddrive");
 						gameState.agentState = STATE_FLY;
 					}
 					break;
 
 				case STATE_ATTACHED:
 					
-					Play::SetSpriteOrigin("agent8_right", 64, 110);
 					Play::SetSprite(obj_agent8, "agent8_right", 0.25f);
 					Agent8AttachedControls();
 					Play::DrawFontText("105px", "REMAINING GEMS: " + std::to_string(gameState.gems),
@@ -500,38 +500,38 @@ void UpdateMeteors()
 
 void CreateParticles()
 {
-	GameObject& objAgent8 = Play::GetGameObjectByType(TYPE_AGENT8);
+	/*GameObject& objAgent8 = Play::GetGameObjectByType(TYPE_AGENT8);
 
 	Play::CreateGameObject(TYPE_PARTICLE, { objAgent8.pos.x + Play::RandomRollRange(-20, 20), objAgent8.pos.y + Play::RandomRollRange(-15, 15) }, 50, "particle");
-	Play::CreateGameObject(TYPE_PARTICLE, { objAgent8.pos.x + Play::RandomRollRange(-20, 20), objAgent8.pos.y + Play::RandomRollRange(-15, 15) }, 50, "particle");
+	Play::CreateGameObject(TYPE_PARTICLE, { objAgent8.pos.x + Play::RandomRollRange(-20, 20), objAgent8.pos.y + Play::RandomRollRange(-15, 15) }, 50, "particle");*/
 }
 
 void UpdateParticles()
 {
-	std::vector<int> vParticles = Play::CollectGameObjectIDsByType(TYPE_PARTICLE);
-	GameObject& obj_specialA = Play::GetGameObjectByType(TYPE_SPECIAL);
+	//std::vector<int> vParticles = Play::CollectGameObjectIDsByType(TYPE_PARTICLE);
+	//GameObject& obj_specialA = Play::GetGameObjectByType(TYPE_SPECIAL);
 
-	if (gameState.agentState == STATE_ATTACHED && (Play::KeyPressed(VK_UP)))
-	{
-		for (int n = 0; n < 3; n++)
-		{
-			int id = Play::CreateGameObject(TYPE_PIECES, { obj_specialA.pos }, 10, "asteroid_pieces_3");
-			GameObject& obj_pieces(Play::GetGameObject(id));
-			obj_pieces.frame = n;
-			obj_pieces.rotation = -n * Play::DegToRad(120);
-		}
-	}
+	//if (gameState.agentState == STATE_ATTACHED && (Play::KeyPressed(VK_UP)))
+	//{
+	//	for (int n = 0; n < 3; n++)
+	//	{
+	//		int id = Play::CreateGameObject(TYPE_PIECES, { obj_specialA.pos }, 10, "asteroid_pieces_3");
+	//		GameObject& obj_pieces(Play::GetGameObject(id));
+	//		obj_pieces.frame = n;
+	//		obj_pieces.rotation = -n * Play::DegToRad(120);
+	//	}
+	//}
 
-	for (int id_particle : vParticles)
-	{
-		GameObject& obj_particle = Play::GetGameObject(id_particle);
-		obj_particle.frame++;
+	//for (int id_particle : vParticles)
+	//{
+	//	GameObject& obj_particle = Play::GetGameObject(id_particle);
+	//	obj_particle.frame++;
 
-		if (obj_particle.frame >= 20 )
-			obj_particle.type = TYPE_DESTROYED;
+	//	if (obj_particle.frame >= 20 )
+	//		obj_particle.type = TYPE_DESTROYED;
 
-		Play::DrawObjectRotated(obj_particle);
-		Play::UpdateGameObject(obj_particle);
+	//	Play::DrawObjectRotated(obj_particle);
+	//	Play::UpdateGameObject(obj_particle);
 
-	}
+	//}
 }
