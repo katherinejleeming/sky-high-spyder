@@ -9,26 +9,34 @@ float AGENT8_SPEED{ 9.0f };
 float METEOR_SPEED{ 7.0f };
 float ASTEROID_SPEED{ 4.0f };
 
-
 enum Agent8State
 {
-	STATE_START = 0,
+	STATE_APPEAR = 0,
 	STATE_ATTACHED,
 	STATE_FLY,
 	STATE_WIN,
 	STATE_DEAD,
 };
 
+enum PlayState
+{
+	STATE_START,
+	STATE_PLAY,
+	STATE_PAUSE,
+	STATE_WIN,
+	STATE_GAMEOVER,
+};
 
 struct GameState
 {
 	int gems{ 3 };
 	int score{ 0 };
 	float time{ 0 };
-	Agent8State agentState = STATE_START;
+	Agent8State agentState = STATE_APPEAR;
 };
 
 GameState gameState;
+
 
 enum GameObjectType
 {
@@ -55,6 +63,7 @@ void UpdateGems();
 void UpdateAsteroids();
 void CreateParticles();
 void UpdateParticles();
+void UpdatePieces();
 
 float Randomize(int range, float multiplier = 1.f)
 {
@@ -102,10 +111,10 @@ void MainGameEntry( PLAY_IGNORE_COMMAND_LINE )
 	Play::SetSpriteOrigin("meteor", 60, 40);
 	Play::SetSpriteOrigin("asteroid", 75, 70);
 
-	int id_asteroid = Play::CreateGameObject(TYPE_ASTEROID, { DISPLAY_WIDTH / 2, DISPLAY_HEIGHT / 3 }, 40, "asteroid");
+	/*int id_asteroid = Play::CreateGameObject(TYPE_ASTEROID, { DISPLAY_WIDTH / 2, DISPLAY_HEIGHT / 3 }, 40, "asteroid");
 	GameObject& obj_asteroid1 = Play::GetGameObject(id_asteroid);
 	obj_asteroid1.rotation = Randomize(628, 0.01);
-	Play::SetSprite(obj_asteroid1, "asteroid", 0.25f);
+	Play::SetSprite(obj_asteroid1, "asteroid", 0.25f);*/
 
 }
 
@@ -128,12 +137,13 @@ void Draw()
 {
 	Play::ClearDrawingBuffer(Play::cWhite);
 	Play::DrawBackground();
+
 	UpdateAsteroids();
 	UpdateMeteors();
 	UpdateDestroyed();
-	//UpdateGems();
 	UpdateAgent8();
 	UpdateParticles();
+	UpdatePieces();
 	Play::PresentDrawingBuffer();
 }
 
@@ -192,10 +202,9 @@ void Agent8AttachedControls()
 
 		if (Play::KeyPressed(VK_UP))
 		{
-			//obj_agent8.pos.x += 10 * 
-				AGENT8_SPEED * sin(obj_agent8.rotation);  
-			//obj_agent8.pos.y += 10 *
-				AGENT8_SPEED * -cos(obj_agent8.rotation);
+			obj_agent8.pos.x += 10 * AGENT8_SPEED * sin(obj_agent8.rotation);  
+			obj_agent8.pos.y += 10  * AGENT8_SPEED * -cos(obj_agent8.rotation);
+			Play::PlayAudio("explode");
 			GameObject& obj_specialA = Play::GetGameObjectByType(TYPE_SPECIAL);
 			Play::DestroyGameObjectsByType(TYPE_SPECIAL);
 
@@ -213,7 +222,7 @@ void UpdateAgent8()
 
 	switch (gameState.agentState)
 		{
-				case STATE_START:
+				case STATE_APPEAR:
 					Play::DrawFontText("64px", "LEFT AND RIGHT TO ROTATE, UP TO LAUNCH",
 						{ DISPLAY_WIDTH / 2, DISPLAY_HEIGHT - 50 }, Play::CENTRE);
 					Play::DrawFontText("64px", "FIND AND COLLECT ALL THE GEMS! PRESS SPACE TO START",
@@ -248,6 +257,7 @@ void UpdateAgent8()
 					Agent8FlyControls();
 					CreateParticles();
 					Play::UpdateGameObject(obj_agent8);
+					UpdateGems();
 					Play::DrawFontText("105px", "REMAINING GEMS: " + std::to_string(gameState.gems),
 						{ DISPLAY_WIDTH / 2, 50 }, Play::CENTRE);
 					break;
@@ -263,23 +273,21 @@ void UpdateAgent8()
 					Play::DrawFontText("64px", "PLAY AGAIN? PRESS R TO RESTART",{ DISPLAY_WIDTH / 2, DISPLAY_HEIGHT - 50 }, Play::CENTRE);
 					Play::UpdateGameObject(obj_agent8);
 
+						for (int meteor_id : Play::CollectGameObjectIDsByType(TYPE_METEOR))
+							Play::GetGameObject(meteor_id).type = TYPE_DESTROYED;
+
+						for (int id_asteroid : Play::CollectGameObjectIDsByType(TYPE_ASTEROID))
+							Play::GetGameObject(id_asteroid).type = TYPE_DESTROYED;
+
 					if( Play::KeyPressed('R') == true)
 					{
-						gameState.agentState = STATE_START;
+						gameState.agentState = STATE_APPEAR;
 						Play::SetSprite(obj_agent8, "agent8_fly", 0.25f);
 						obj_agent8.pos = { DISPLAY_WIDTH/2, DISPLAY_HEIGHT/2 };
 						gameState.score = 0;
 						gameState.gems = 3;
+						gameState.time = 0;
 
-						for (int meteor_id : Play::CollectGameObjectIDsByType(TYPE_METEOR))
-							Play::GetGameObject(meteor_id).type = TYPE_DESTROYED;
-
-						for (int id : Play::CollectGameObjectIDsByType(TYPE_ASTEROID))
-							Play::GetGameObject(id).type = TYPE_DESTROYED;
-
-
-						for (int id : Play::CollectGameObjectIDsByType(TYPE_SPECIAL))
-							Play::GetGameObject(id).type = TYPE_DESTROYED;
 					}
 
 					break;
@@ -310,44 +318,40 @@ void UpdateDestroyed()
 void UpdateGems()
 {
 	GameObject& obj_agent8 = Play::GetGameObjectByType(TYPE_AGENT8);
+	GameObject& obj_specialA = Play::GetGameObjectByType(TYPE_SPECIAL);
 	std::vector<int> vGems = Play::CollectGameObjectIDsByType(TYPE_GEM);
 
+	for (int id_gem : vGems)
+	{
+		Play::DrawObject(Play::GetGameObject(id_gem));
+		GameObject& obj_gem = Play::GetGameObject(id_gem);
+		bool hasCollided = false;
 
-		if (Play::RandomRoll(300) == 300)
+		if (Play::IsColliding(obj_gem, obj_agent8) && gameState.gems > 0)
 		{
-			int id_gem = Play::CreateGameObject(TYPE_GEM, {  }, 20, "gem");
-			GameObject& obj_gem = Play::GetGameObject(id_gem);
-		}
+			Play::PlayAudio("reward");
+			Play::SetSprite(obj_gem, "blue_ring", 0.25f);
+			hasCollided = true;
+			obj_gem.type = TYPE_DESTROYED;
+			gameState.gems -= 1;
 
-		for (int id_gem : vGems)
-		{
-			Play::DrawObject(Play::GetGameObject(id_gem));
-			GameObject& obj_gem = Play::GetGameObject(id_gem);
-			bool hasCollided = false;
-
-			if (Play::IsColliding(obj_gem, obj_agent8))
+			if (gameState.gems >= 0)
 			{
-				Play::PlayAudio("reward");
-				Play::SetSprite(obj_gem, "blue_ring", 0.25f);
-				hasCollided = true;
-				obj_gem.type = TYPE_DESTROYED;
-				gameState.gems -= 1;
-
-				if (gameState.gems >= 0)
-				{
-					//gameState.agentState = STATE_WIN;
-				}
+				//gameState.agentState = STATE_WIN;
 			}
-
-			Play::UpdateGameObject(obj_gem);
-
 		}
-	
+
+	}
+
+	for (int id_gem : vGems)
+	{
+		Play::UpdateGameObject(Play::GetGameObject(id_gem));
+	}
 }
 
 void UpdateAsteroids()
 {
-	if (gameState.time > 10)
+	if (gameState.time > 5)
 	{
 		int id_asteroid = Play::CreateGameObject(TYPE_ASTEROID, { Play::RandomRollRange(0, 1280), Play::RandomRollRange(0, 720) }, 40, "asteroid");
 		GameObject& obj_asteroid = Play::GetGameObject(id_asteroid);
@@ -357,12 +361,12 @@ void UpdateAsteroids()
 
 		gameState.time = 0;
 	}
-	
+
 
 	GameObject& obj_agent8 = Play::GetGameObjectByType(TYPE_AGENT8);
 	std::vector<int> vAsteroids = Play::CollectGameObjectIDsByType(TYPE_ASTEROID);
 
-	for (int id : vAsteroids )
+	for (int id : vAsteroids)
 	{
 		GameObject& obj_asteroid = Play::GetGameObject(id);
 		bool hasCollided = false;
@@ -388,33 +392,42 @@ void UpdateAsteroids()
 		vAsteroids.push_back(obj_specialA.GetId());
 	}
 
-	//for (auto it = vAsteroids.begin(); it != vAsteroids.end(); it++)
-	//{
-	//	vAsteroids [*it];
-
-	//	if (gameState.agentState == STATE_FLY && !Play::IsColliding(obj_agent8, obj_specialA))
-	//	{
-	//		it = vAsteroids.erase(it);
-	//	}
-	//}
-
-	if (gameState.agentState == STATE_ATTACHED && (Play::KeyPressed(VK_UP)))
+	std::vector<int> vPieces = Play::CollectGameObjectIDsByType(TYPE_PIECES);
+	for (int id_pieces : vPieces)
 	{
-	/*	for (int n = 0; n < 3; n++)
+		GameObject& obj_pieces = Play::GetGameObject(id_pieces);
+	}
+
+	std::vector<int> vGems = Play::CollectGameObjectIDsByType(TYPE_GEM);
+	for (int id_gem : vGems)
+	{
+		GameObject& obj_gem = Play::GetGameObject(id_gem);
+	}
+
+
+	if ((gameState.agentState == STATE_ATTACHED) && (Play::KeyPressed(VK_UP)))
+	{
+
+		int id_gem = Play::CreateGameObject(TYPE_GEM, { obj_specialA.pos }, 20, "gem");
+		GameObject& obj_gem = Play::GetGameObject(id_gem);
+		obj_gem.pos = obj_specialA.oldPos;
+
+		for (int n = 0; n < 3; n++)
 		{
-			int id = Play::CreateGameObject(TYPE_PIECES, { obj_specialA.pos }, 10, "asteroid_pieces_3");
-			GameObject& obj_pieces(Play::GetGameObject(id));
+			int id_pieces = Play::CreateGameObject(TYPE_PIECES, { obj_specialA.pos }, 10, "asteroid_pieces_3");
+			GameObject& obj_pieces(Play::GetGameObject(id_pieces));
 			obj_pieces.frame = n;
 			obj_pieces.rotation = -n * Play::DegToRad(120);
-		}*/
-		Play::PlayAudio("explode");
+		}
+
 	}
+		
 
 	for (int id : vAsteroids)
 	{
 
-		Play::DrawObjectRotated(Play::GetGameObject(id));
 		LoopObject((Play::GetGameObject(id)), 40, 40);
+		Play::DrawObjectRotated(Play::GetGameObject(id));
 		Play::UpdateGameObject(Play::GetGameObject(id));
 
 	}
@@ -428,6 +441,9 @@ void UpdatePieces()
 		GameObject& obj_pieces (Play::GetGameObject(id));
 		obj_pieces.pos.x = obj_pieces.pos.x + sin(obj_pieces.rotation) * 10; //controls movement of pieces
 		obj_pieces.pos.y = obj_pieces.pos.y - cos(obj_pieces.rotation) * 10;
+
+		if (!Play::IsVisible(obj_pieces))
+			Play::DestroyGameObject(id);
 	}
 
 	for (int id : vPieces)
@@ -443,7 +459,7 @@ void UpdateMeteors()
 	GameObject& obj_agent8 = Play::GetGameObjectByType(TYPE_AGENT8);
 	std::vector<int> vMeteors = Play::CollectGameObjectIDsByType(TYPE_METEOR);
 
-	if (gameState.agentState != STATE_START && gameState.agentState != STATE_DEAD)
+	if (gameState.agentState != STATE_APPEAR && gameState.agentState != STATE_DEAD)
 	{
 		if (Play::RandomRoll(300) == 300)
 		{
