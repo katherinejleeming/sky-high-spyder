@@ -7,7 +7,7 @@ constexpr int DISPLAY_HEIGHT{ 720 };
 constexpr int DISPLAY_SCALE{ 1 };
 float AGENT8_SPEED{ 9.0f };
 float METEOR_SPEED{ 7.0f };
-float ASTEROID_SPEED{ 4.0f };
+float ASTEROID_SPEED{ 2.0f };
 int ASTEROID_RADIUS{ 70 };
 
 enum Agent8State
@@ -118,7 +118,7 @@ bool MainGameUpdate( float elapsedTime )
 		case STATE_START:
 			if (Play::KeyPressed(VK_SPACE) == true)
 			{
-				Play::StartAudioLoop("sailing");
+				//Play::StartAudioLoop("sailing");
 				gameState.playState = STATE_PLAY;
 				gameState.agentState = STATE_FLY;
 			}
@@ -295,15 +295,22 @@ void Agent8AttachedControls()
 		if (Play::KeyDown(VK_LEFT))
 		{
 			obj_agent8.rotation -= 0.1f;
-			
-			Play::SetSprite(obj_agent8, "agent8_left", 0.25f);
+			Play::SetSprite(obj_agent8, "agent8_left", 0);
+			obj_agent8.animSpeed = 0.25f;
 		}
 
 		else if (Play::KeyDown(VK_RIGHT))
 		{
 			obj_agent8.rotation += 0.1f;
-			
-			Play::SetSprite(obj_agent8, "agent8_right", 0.25f);
+			Play::SetSprite(obj_agent8, "agent8_right", 0);
+			obj_agent8.animSpeed = 0.25f;
+
+		}
+
+		else
+		{
+			Play::SetSprite(obj_agent8, "agent8_left", 0);
+			obj_agent8.animSpeed = 0.f;
 		}
 
 		if (Play::KeyPressed(VK_UP))
@@ -345,7 +352,7 @@ void UpdateAgent8()
 						break;
 	
 					case STATE_ATTACHED:
-						Play::SetSprite(obj_agent8, "agent8_right", 0.25f);
+						
 						Agent8AttachedControls();
 						Play::UpdateGameObject(obj_agent8);
 
